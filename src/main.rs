@@ -37,7 +37,7 @@ async fn main() {
 
                         if addr != other_addr {
                             writer.write_all(msg.as_bytes()).await.unwrap();
-
+                            println!("{}", msg)
                         }
                     }
                 }
