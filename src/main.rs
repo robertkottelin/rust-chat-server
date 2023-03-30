@@ -25,7 +25,10 @@ async fn main() {
         let tx = tx.clone();
         let mut rx = tx.subscribe();
 
-        // Inside the loop, after accepting the connection
+        // Send a prompt to the client for their username
+        socket.write_all(b"Enter your username: ").await.unwrap();
+        socket.flush().await.unwrap(); // Flush the output
+
         let username = match read_username(&mut socket).await {
             Ok(username) => username,
             Err(e) => {
