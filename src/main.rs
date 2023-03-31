@@ -1,7 +1,7 @@
+use std::sync::{Arc, Mutex};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
-    net::TcpStream,
+    net::{TcpListener, TcpStream},
     sync::broadcast,
 };
 use std::{collections::HashMap, net::SocketAddr};
@@ -18,7 +18,7 @@ async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let (tx, _rx) = broadcast::channel(100);
 
-    let mut users = HashMap::<String, SocketAddr>::new();
+    let users = Arc::new(Mutex::new(HashMap::<String, SocketAddr>::new()));
 
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();
@@ -37,17 +37,18 @@ async fn main() {
             }
         };
 
-        if users.contains_key(&username) {
+        let mut users_guard = users.lock().unwrap();
+        if users_guard.contains_key(&username) {
             // You can choose how to handle duplicate usernames (e.g., disconnect or generate a unique username)
             eprintln!("Username '{}' is already in use.", username);
             continue;
         }
 
         let user_addr = addr;
-        users.insert(username.clone(), user_addr);
+        users_guard.insert(username.clone(), user_addr);
+        drop(users_guard);
 
-        // In the spawned task, after the main loop
-        users.remove(&username);
+        let users = Arc::clone(&users);
 
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
@@ -61,8 +62,9 @@ async fn main() {
                             break;
                         }
 
-                        // Send the line read from the client to all subscribers
-                        tx.send((line.clone(), addr)).unwrap();
+                        let msg = format!("{}: {}", username, line);
+                        // Send the message to all subscribers
+                        tx.send((msg.clone(), addr)).unwrap();
                         line.clear();
                     }
                     result = rx.recv() => {
@@ -71,11 +73,15 @@ async fn main() {
                         // Write the message to the client if it's from a different address
                         if addr != other_addr {
                             writer.write_all(msg.as_bytes()).await.unwrap();
-                            println!("{}", msg)
+                            writer.flush().await.unwrap();
                         }
                     }
                 }
             }
+
+            // Remove the user after they have disconnected
+            let mut users_guard = users.lock().unwrap();
+            users_guard.remove(&username);
         });
     }
 }
