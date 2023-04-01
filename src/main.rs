@@ -36,15 +36,13 @@ async fn main() {
                         line.clear();
                     }
                     result = rx.recv() => {
-                        let (msg, _other_addr) = result.unwrap();
-                        writer.write_all(msg.as_bytes()).await.unwrap();
-                        writer.flush().await.unwrap();
+                        let (msg, other_addr) = result.unwrap();
 
                         // Write the message to the client if it's from a different address
-                        // if addr != other_addr {
-                        //     writer.write_all(msg.as_bytes()).await.unwrap();
-                        //     writer.flush().await.unwrap();
-                        // }
+                        if addr != other_addr {
+                            writer.write_all(msg.as_bytes()).await.unwrap();
+                            writer.flush().await.unwrap();
+                        }
                     }
                 }
             }
