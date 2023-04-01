@@ -1,27 +1,45 @@
+use std::collections::HashMap;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{TcpListener},
+    net::TcpListener,
     sync::broadcast,
 };
-//use std::{collections::HashMap, net::SocketAddr};
-
 
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let (tx, _rx) = broadcast::channel(100);
 
-
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();
         let tx = tx.clone();
         let mut rx = tx.subscribe();
 
+        let mut users: HashMap<String, String> = HashMap::new();
 
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
+
+            writer
+                .write_all(b"Initializing server... \n")
+                .await
+                .unwrap();
+
+            // Prompt for username and password
+            writer.write_all(b"Username: ").await.unwrap();
+            let mut username = String::new();
+            reader.read_line(&mut username).await.unwrap();
+            let username = username.trim().to_string();
+
+            writer.write_all(b"Password: ").await.unwrap();
+            let mut password = String::new();
+            reader.read_line(&mut password).await.unwrap();
+            let password = password.trim().to_string();
+
+            // Store the username and password in the hashmap
+            users.insert(username.clone(), password.clone());
 
             loop {
                 tokio::select! {
@@ -30,7 +48,7 @@ async fn main() {
                             break;
                         }
 
-                        let msg = format!("{}", line);
+                        let msg = format!("{}: {}", username, line);
                         // Send the message to all subscribers
                         tx.send((msg.clone(), addr)).unwrap();
                         line.clear();
