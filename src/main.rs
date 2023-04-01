@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
@@ -14,10 +15,31 @@ async fn main() {
         let tx = tx.clone();
         let mut rx = tx.subscribe();
 
+        let mut users: HashMap<String, String> = HashMap::new();
+
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
+
+            writer
+                .write_all(b"Initializing server... \n")
+                .await
+                .unwrap();
+
+            // Prompt for username and password
+            writer.write_all(b"Username: ").await.unwrap();
+            let mut username = String::new();
+            reader.read_line(&mut username).await.unwrap();
+            let username = username.trim().to_string();
+
+            writer.write_all(b"Password: ").await.unwrap();
+            let mut password = String::new();
+            reader.read_line(&mut password).await.unwrap();
+            let password = password.trim().to_string();
+
+            // Store the username and password in the hashmap
+            users.insert(username.clone(), password.clone());
 
             loop {
                 tokio::select! {
@@ -26,8 +48,9 @@ async fn main() {
                             break;
                         }
 
-                        // Send the line read from the client to all subscribers
-                        tx.send((line.clone(), addr)).unwrap();
+                        let msg = format!("{}: {}", username, line);
+                        // Send the message to all subscribers
+                        tx.send((msg.clone(), addr)).unwrap();
                         line.clear();
                     }
                     result = rx.recv() => {
@@ -36,7 +59,7 @@ async fn main() {
                         // Write the message to the client if it's from a different address
                         if addr != other_addr {
                             writer.write_all(msg.as_bytes()).await.unwrap();
-                            println!("{}", msg)
+                            writer.flush().await.unwrap();
                         }
                     }
                 }
