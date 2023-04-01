@@ -4,12 +4,33 @@ use tokio::{
     net::TcpListener,
     sync::broadcast,
 };
+use rusqlite::{params, Result};
+use tokio_rusqlite::Connection;
 
 
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let (tx, _rx) = broadcast::channel(100);
+    let conn = Connection::open("users.db").await.unwrap();
+
+    // TRY TO SEPARATE TO FUNCTION?
+    // conn.call(|conn| {
+    //     conn.execute(
+    //         "create table if not exists users (
+    //             id integer primary key,
+    //             username text,
+    //             password text
+    //         )",
+    //         [],
+    //     )?; 
+
+    //     conn.execute(
+    //     "INSERT INTO users (user, password) values (?1, ?2)",
+    //     ([]),
+    //     )?;
+
+
 
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();
