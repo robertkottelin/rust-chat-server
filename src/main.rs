@@ -4,33 +4,31 @@ use tokio::{
     net::TcpListener,
     sync::broadcast,
 };
-use rusqlite::{params, Result};
-use tokio_rusqlite::Connection;
+use sqlite;
+use std::sync::Mutex;
 
+lazy_static::lazy_static! {
+    static ref DB_MUTEX: Mutex<()> = Mutex::new(());
+}
+
+pub fn database(username: &str, password: &str) {
+    println!("Writing to database");
+
+    let _lock = DB_MUTEX.lock().unwrap(); // acquire the lock
+
+    let connection = sqlite::open("users.db").unwrap();
+    let query = format!(
+        "INSERT INTO users (username, password) VALUES ('{}', '{}');",
+        username, password
+    );
+    connection.execute(&query).unwrap();
+}
 
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let (tx, _rx) = broadcast::channel(100);
-    let conn = Connection::open("users.db").await.unwrap();
-
-    // TRY TO SEPARATE TO FUNCTION?
-    // conn.call(|conn| {
-    //     conn.execute(
-    //         "create table if not exists users (
-    //             id integer primary key,
-    //             username text,
-    //             password text
-    //         )",
-    //         [],
-    //     )?; 
-
-    //     conn.execute(
-    //     "INSERT INTO users (user, password) values (?1, ?2)",
-    //     ([]),
-    //     )?;
-
-
+    // database();
 
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();
@@ -43,7 +41,6 @@ async fn main() {
             let (reader, mut writer) = socket.split();
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
-
             writer
                 .write_all(b"Initializing server... \n")
                 .await
@@ -62,6 +59,12 @@ async fn main() {
 
             // Store the username and password in the hashmap
             users.insert(username.clone(), password.clone());
+            database(&username, &password); // insert into database
+
+            writer
+                .write_all(b"Log in successful... \n")
+                .await
+                .unwrap();
 
             loop {
                 tokio::select! {
