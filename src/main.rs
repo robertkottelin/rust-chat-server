@@ -11,20 +11,20 @@ lazy_static::lazy_static! {
 }
 
 pub fn database(username: &str, password: &str) {
-    let _lock = DB_MUTEX.lock().unwrap(); // acquire the lock
+    let _lock = DB_MUTEX.lock().expect("can't aquire lock");
 
-    let connection = sqlite::open("users.db").unwrap();
+    let connection = sqlite::open("users.db").expect("Failed to connect to database");
     let query = format!(
         "INSERT INTO users (username, password) VALUES ('{}', '{}');",
         username, password
     );
-    connection.execute(&query).unwrap();
+    connection.execute(&query).expect("Failed to execute query");
 }
 
 pub fn user_auth(username: &str, password: &str) -> bool {
-    let _lock = DB_MUTEX.lock().unwrap(); // acquire the lock
+    let _lock = DB_MUTEX.lock().expect("can't aquire lock");
 
-    let connection = sqlite::open("users.db").unwrap();
+    let connection = sqlite::open("users.db").expect("Failed to connect to database");
     let query = format!(
         "SELECT COUNT(*) FROM users WHERE username = '{}' AND password = '{}';",
         username, password
