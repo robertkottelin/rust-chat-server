@@ -95,14 +95,19 @@ async fn main() -> Result<()> {
             loop {
                 tokio::select! {
                     result = reader.read_line(&mut line) => {
-                        if result.expect("Failed to read line") == 0 {
-                            break;
+                        match result {
+                            Ok(n) if n == 0 => break,
+                            Ok(_) => {
+                                let msg = format!("{}: {}", username, line);
+                                // Send the message to all subscribers
+                                tx.send((msg.clone(), addr)).expect("Failed to send message");
+                                line.clear();
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to read line, user closed the connection: {}", e);
+                                break;
+                            }
                         }
-
-                        let msg = format!("{}: {}", username, line);
-                        // Send the message to all subscribers
-                        tx.send((msg.clone(), addr)).expect("Failed to send message");
-                        line.clear();
                     }
                     result = rx.recv() => {
                         match result {
