@@ -1,5 +1,4 @@
 use sqlite;
-use std::collections::HashMap;
 use std::sync::Mutex;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -54,8 +53,6 @@ async fn main() {
         let tx = tx.clone();
         let mut rx = tx.subscribe();
 
-        let mut users: HashMap<String, String> = HashMap::new();
-
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
             let mut reader = BufReader::new(reader);
@@ -66,13 +63,12 @@ async fn main() {
                 .unwrap();
 
             // Prompt for username and password
-
-            writer.write_all(b"Username: ").await.unwrap();
+            writer.write_all(b"Username: \n").await.unwrap();
             let mut username = String::new();
             reader.read_line(&mut username).await.unwrap();
             let username = username.trim().to_string();
 
-            writer.write_all(b"Password: ").await.unwrap();
+            writer.write_all(b"Password: \n").await.unwrap();
             let mut password = String::new();
             reader.read_line(&mut password).await.unwrap();
             let password = password.trim().to_string();
@@ -84,7 +80,6 @@ async fn main() {
                     authenticated = true;
                 } else {
                     // If the user is not authenticated, store their credentials and add them to the database
-                    users.insert(username.clone(), password.clone());
                     database(&username, &password);
                     writer
                         .write_all(b"Username-password combination not found. Creating user.\n")
