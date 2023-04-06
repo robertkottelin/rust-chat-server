@@ -68,7 +68,7 @@ async fn main() {
             reader.read_line(&mut username).await.unwrap();
             let username = username.trim().to_string();
 
-            writer.write_all(b"Password: \n").await.unwrap();
+            writer.write_all(b"\nPassword: \n").await.unwrap();
             let mut password = String::new();
             reader.read_line(&mut password).await.unwrap();
             let password = password.trim().to_string();
@@ -82,14 +82,14 @@ async fn main() {
                     // If the user is not authenticated, store their credentials and add them to the database
                     database(&username, &password);
                     writer
-                        .write_all(b"Username-password combination not found. Creating user.\n")
+                        .write_all(b"\nUsername-password combination not found. Creating user.\n")
                         .await
                         .unwrap();
                 }
             }
 
             writer
-                .write_all(format!("Log in successful... Welcome {}! \n", username).as_bytes())
+                .write_all(format!("\nLog in successful. Welcome {}! \n", username).as_bytes())
                 .await
                 .unwrap();
 
