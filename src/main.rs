@@ -1,9 +1,8 @@
 use anyhow::{Result};
-use std::sync::Arc;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
-    sync::{broadcast, Mutex},
+    sync::{broadcast},
 };
 
 mod database;

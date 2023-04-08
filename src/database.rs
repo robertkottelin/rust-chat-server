@@ -3,9 +3,7 @@ use bcrypt::{verify, hash, DEFAULT_COST};
 use sqlite::{Connection};
 use std::sync::Arc;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
-    sync::{broadcast, Mutex},
+    sync::{Mutex},
 };
 
 lazy_static::lazy_static! {
