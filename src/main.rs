@@ -1,5 +1,4 @@
 use anyhow::{Result};
-use sqlite::{Connection};
 use std::sync::Arc;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -7,39 +6,7 @@ use tokio::{
     sync::{broadcast, Mutex},
 };
 
-lazy_static::lazy_static! {
-    static ref DB_MUTEX: Arc<Mutex<Connection>> = {
-        let conn = Connection::open("users.db").expect("Failed to open users.db");
-        Arc::new(Mutex::new(conn))
-    };
-}
-
-pub async fn database(username: &str, password: &str) -> Result<()> {
-    let query = format!(
-        "INSERT INTO users (username, password) VALUES ('{}', '{}');",
-        username, password
-    );
-    let conn = DB_MUTEX.lock().await;
-    conn.execute(&query)?;
-    Ok(())
-}
-
-pub async fn user_auth(username: &str, password: &str) -> Result<bool> {
-    let query = format!(
-        "SELECT COUNT(*) FROM users WHERE username = '{}' AND password = '{}';",
-        username, password
-    );
-
-    let conn = DB_MUTEX.lock().await;
-    let mut count = 0;
-    conn.iterate(&query, |row| {
-        let count_str = row[0].1.unwrap();
-        count = count_str.parse::<i64>().unwrap() as usize;
-        true
-    })?;
-
-    Ok(count > 0)
-}
+mod database;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -74,11 +41,11 @@ async fn main() -> Result<()> {
             let mut authenticated = false;
             while !authenticated {
                 // Check if the user is authenticated
-                if user_auth(&username, &password).await.unwrap_or(false) {
+                if database::user_auth(&username, &password).await.unwrap_or(false) {
                     authenticated = true;
                 } else {
                     // If the user is not authenticated, store their credentials and add them to the database
-                    database(&username, &password)
+                    database::database(&username, &password)
                         .await
                         .expect("Failed to add user to the database");
                     writer
