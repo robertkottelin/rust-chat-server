@@ -7,7 +7,6 @@ use tokio::{
 
 mod database;
 mod auth;
-mod input;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,11 +25,17 @@ async fn main() -> Result<()> {
             writer
                 .write_all(b"Initializing server... \n")
                 .await
-                .expect("Failed to write to socket");
+                .expect("Failed to write to socket");            
 
-            // Prompt for username and password
-            let username = input::get_input("Username: ").await.unwrap();
-            let password = input::get_input("Password: ").await.unwrap();
+            writer.write_all(b"Username: \n").await.expect("Failed to write to socket");
+            let mut username = String::new();
+            reader.read_line(&mut username).await.expect("Failed to read username");
+            let username = username.trim().to_string();
+
+            writer.write_all(b"\nPassword: \n").await.expect("Failed to write to socket");
+            let mut password = String::new();
+            reader.read_line(&mut password).await.expect("Failed to read password");
+            let password = password.trim().to_string();
 
             auth::authenticate_user(&username, &password)
                 .await

@@ -17,6 +17,8 @@ pub async fn database(username: &str, password: &str) -> Result<()> {
     // Hash the password using bcrypt
     let hashed_password = hash(password, DEFAULT_COST)?;
 
+    // println!("{:?}", hashed_password);
+
     // Create the users table if it does not exist
     let create_table_query = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL);";
     let conn = DB_MUTEX.lock().await;
