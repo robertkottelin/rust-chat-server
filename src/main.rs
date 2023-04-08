@@ -7,6 +7,7 @@ use tokio::{
 };
 
 mod database;
+mod auth;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -38,22 +39,10 @@ async fn main() -> Result<()> {
             reader.read_line(&mut password).await.expect("Failed to read password");
             let password = password.trim().to_string();
 
-            let mut authenticated = false;
-            while !authenticated {
-                // Check if the user is authenticated
-                if database::user_auth(&username, &password).await.unwrap_or(false) {
-                    authenticated = true;
-                } else {
-                    // If the user is not authenticated, store their credentials and add them to the database
-                    database::database(&username, &password)
-                        .await
-                        .expect("Failed to add user to the database");
-                    writer
-                        .write_all(b"\nUsername-password combination not found. Creating user.\n")
-                        .await
-                        .expect("Failed to write to socket");
-                }
-            }
+            auth::authenticate_user(&username, &password)
+            .await
+            .expect("Failed to authenticate user");
+        
             writer
                 .write_all(format!("\nLog in successful. Welcome {}! \n", username).as_bytes())
                 .await
