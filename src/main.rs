@@ -67,10 +67,12 @@ async fn main() -> Result<()> {
                         match result {
                             Ok((msg, other_addr)) => {
                                 // Write the message to the client if it's from a different address
-                                if addr != other_addr {
-                                    writer.write_all(msg.as_bytes()).await.expect("Failed to write to socket");
-                                    writer.flush().await.expect("Failed to flush writer");
-                                }
+                                // if addr != other_addr {
+                                //     writer.write_all(msg.as_bytes()).await.expect("Failed to write to socket");
+                                //     writer.flush().await.expect("Failed to flush writer");
+                                // }
+                                writer.write_all(msg.as_bytes()).await.expect("Failed to write to socket");
+                                writer.flush().await.expect("Failed to flush writer");
                             }
                             Err(_) => break,
                         }
