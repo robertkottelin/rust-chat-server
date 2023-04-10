@@ -2,21 +2,29 @@ use anyhow::{Result};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
-    sync::{broadcast},
+    sync::{broadcast, Mutex},
 };
+use std::collections::HashMap;
+use std::sync::Arc;
 
 mod database;
 mod auth;
 
+async fn list_chat_rooms(chat_rooms: &Mutex<HashMap<String, broadcast::Sender<(String, std::net::SocketAddr)>>>) -> String {
+    let chat_rooms = chat_rooms.lock().await;
+    let names: Vec<String> = chat_rooms.keys().cloned().collect();
+    names.join(", ")
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let listener = TcpListener::bind("0.0.0.0:8081").await?;
-    let (tx, _rx) = broadcast::channel(100);
+    let chat_rooms: HashMap<String, broadcast::Sender<(String, std::net::SocketAddr)>> = HashMap::new();
+    let chat_rooms = Arc::new(Mutex::new(chat_rooms));
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
-        let tx = tx.clone();
-        let mut rx = tx.subscribe();
+        let chat_rooms = chat_rooms.clone();
 
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
@@ -46,6 +54,27 @@ async fn main() -> Result<()> {
                 .await
                 .expect("Failed to write to socket");
 
+            let available_rooms = list_chat_rooms(&chat_rooms).await;
+            writer
+                .write_all(format!("Enter chat room name, or create one by typing its name. Available rooms: {}\n", available_rooms).as_bytes())
+                .await
+                .expect("Failed to write to socket");
+            let mut chat_room_name = String::new();
+            reader.read_line(&mut chat_room_name).await.expect("Failed to read chat room name");
+            let chat_room_name = chat_room_name.trim().to_string();
+                
+
+            let (tx, mut rx) = {
+                let mut chat_rooms = chat_rooms.lock().await;
+                if let Some(sender) = chat_rooms.get(&chat_room_name) {
+                    (sender.clone(), sender.subscribe())
+                } else {
+                    let (tx, rx) = broadcast::channel(100);
+                    chat_rooms.insert(chat_room_name.clone(), tx.clone());
+                    (tx, rx)
+                }
+            };
+
             loop {
                 tokio::select! {
                     result = reader.read_line(&mut line) => {
@@ -53,7 +82,6 @@ async fn main() -> Result<()> {
                             Ok(n) if n == 0 => break,
                             Ok(_) => {
                                 let msg = format!("{}: {}", username, line);
-                                // Send the message to all subscribers
                                 tx.send((msg.clone(), addr)).expect("Failed to send message");
                                 line.clear();
                             }
@@ -66,7 +94,6 @@ async fn main() -> Result<()> {
                     result = rx.recv() => {
                         match result {
                             Ok((msg, other_addr)) => {
-                                // Write the message to the client if it's from a different address
                                 if addr != other_addr {
                                     writer.write_all(msg.as_bytes()).await.expect("Failed to write to socket");
                                     writer.flush().await.expect("Failed to flush writer");
