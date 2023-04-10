@@ -10,7 +10,7 @@ mod auth;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let listener = TcpListener::bind("0.0.0.0:8081").await?;
     let (tx, _rx) = broadcast::channel(100);
 
     loop {
